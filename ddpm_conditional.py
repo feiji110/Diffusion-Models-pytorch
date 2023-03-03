@@ -125,14 +125,15 @@ def launch():
 
 
 if __name__ == '__main__':
-    launch()
-    # device = "cuda"
-    # model = UNet_conditional(num_classes=10).to(device)
+    # launch()
+    device = "cuda"
+    model = UNet_conditional(num_classes=10).to(device)
     # ckpt = torch.load("./models/DDPM_conditional/ckpt.pt")
-    # model.load_state_dict(ckpt)
-    # diffusion = Diffusion(img_size=64, device=device)
-    # n = 8
-    # y = torch.Tensor([6] * n).long().to(device)
-    # x = diffusion.sample(model, n, y, cfg_scale=0)
-    # plot_images(x)
+    ckpt = torch.load("/home/gao/project/Diffusion-Models-pytorch/model/conditional_ema_ckpt.pt")
+    model.load_state_dict(ckpt)
+    diffusion = Diffusion(img_size=64, device=device)
+    n = 8
+    y = torch.Tensor([6] * n).long().to(device)
+    x = diffusion.sample(model, n, y, cfg_scale=0)
+    plot_images(x)
 
