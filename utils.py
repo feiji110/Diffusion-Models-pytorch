@@ -9,7 +9,7 @@ from PIL import Image
 from fastdownload import FastDownload
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
-
+import numpy as np 
 cifar_labels = "airplane,automobile,bird,cat,deer,dog,frog,horse,ship,truck".split(",")
 alphabet_labels = "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z".split(" ")
 
@@ -114,7 +114,37 @@ def get_data(args):
     val_dataset = DataLoader(val_dataset, batch_size=2*args.batch_size, shuffle=False, num_workers=args.num_workers)
     return train_dataloader, val_dataset
 
-
+def get_spectral(args):
+    args.data_path = args.dataset_dir_path + '/MP_comp39_dos161.npy'
+    args.train_idx = args.dataset_dir_path + '/train_idx.npy'
+    args.feature_dim = 39
+    args.label_dim = 161
+    print("loading data.....")
+    data = np.load(args.data_path, allow_pickle=True).astype(float)
+    train_idx = np.load(args.train_idx)
+    data = data[train_idx, :]  # (30883, 200)
+    spectral_label = torch.Tensor(data[:, args.feature_dim:])  # torch.Size([30883, 161])
+    features = torch.Tensor(data[:, 0:args.feature_dim]) # torch.Size([30883, 39])
+    print('该数据集中前161维度作为生成标签，后39维作为条件标签,计算161维度的标签均值和方差并保存下来，测试时使用')
+    mean = torch.mean(spectral_label, dim=0)
+    std = torch.std(spectral_label, dim=0)
+    labels_standard = (spectral_label - mean) / (std + 1e-6)  # 标准化之后的标签，1e-6作为了平滑项
+    # TensorDataset 可以用来对 tensor 进行打包，就好像 python 中的 zip 功能。
+    # dataset = torch.cat([features, labels_standard], dim=1) # 200维度
+    from torch.utils.data import TensorDataset
+    full_dataset = TensorDataset(features, spectral_label)
+    
+    train_size = int(0.8*len(full_dataset))
+    val_size=len(full_dataset)-train_size
+    train_dataset,val_dataset = torch.utils.data.random_split(full_dataset,[train_size, val_size])
+    
+    # DataLoader对数据进行封装
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+    val_dataset = DataLoader(val_dataset, batch_size=2*args.batch_size, shuffle=False, num_workers=args.num_workers)
+    return train_dataloader, val_dataset
+    
+    
+    
 def mk_folders(run_name):
     os.makedirs("models", exist_ok=True)
     os.makedirs("results", exist_ok=True)
