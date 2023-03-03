@@ -99,17 +99,17 @@ def launch():
     args.epochs = 500
     args.batch_size = 12
     args.image_size = 64
-    args.dataset_path = r"/home/gao/project/Diffusion-Models-pytorch/datasets/landscape_dataset/"
+    args.dataset_path = r"C:\Users\dome\datasets\landscape_img_folder"
     args.device = "cuda"
     args.lr = 3e-4
     train(args)
 
 
 if __name__ == '__main__':
-    launch() # 训练
+    launch()
     # device = "cuda"
     # model = UNet().to(device)
-    # ckpt = torch.load("/home/gao/project/Diffusion-Models-pytorch/model/unconditional_ckpt.pt")
+    # ckpt = torch.load("./working/orig/ckpt.pt")
     # model.load_state_dict(ckpt)
     # diffusion = Diffusion(img_size=64, device=device)
     # x = diffusion.sample(model, 8)
