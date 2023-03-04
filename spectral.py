@@ -15,7 +15,7 @@ from contextlib import nullcontext#?
 import numpy as np
 config = SimpleNamespace(    
     run_name = "DDPM_conditional",
-    epochs = 100,
+    epochs = 50,
     noise_steps=1000,
     seed = 42,
     batch_size = 128,
@@ -23,11 +23,9 @@ config = SimpleNamespace(
     conditional_size = 39,
     dataset_dir_path = "/home/gao/project/Diffusion-Models-pytorch/datasets/20200828_MP_dos",
     train_folder = "train",
-    val_folder = "test",
     device = "cuda",
     slice_size = 1,
-    # use_wandb = True,
-    use_wandb=False,
+    use_wandb = True,
     do_validation = True,
     fp16 = True,
     log_every_epoch = 10,
@@ -43,7 +41,7 @@ logging.basicConfig(format="%(asctime)s - %(levelname)s: %(message)s", level=log
 
 
 class Diffusion:
-    def __init__(self, noise_steps=1000, beta_start=1e-4, beta_end=0.02, spectral_label_size=256, conditional_size=39, c_in=1, c_out=1, device="cuda"):
+    def __init__(self, noise_steps=1000, beta_start=1e-4, beta_end=0.02, spectral_label_size=161, conditional_size=39, c_in=1, c_out=1, device="cuda"):
         self.noise_steps = noise_steps
         self.beta_start = beta_start
         self.beta_end = beta_end
@@ -73,29 +71,29 @@ class Diffusion:
         return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * Ɛ, Ɛ
     
     @torch.inference_mode()
-    def sample(self, use_ema, labels, cfg_scale=3):
-        n = len(labels)
-        logging.info(f"Sampling {n} new images....")
+    def sample(self, use_ema, condition, cfg_scale=3):
+        n = condition.size()[0]
+        logging.info(f"Sampling {n} new spectral labels....")
         model = self.ema_model if use_ema else self.model
         model.eval()
         with torch.inference_mode():
-            x = torch.randn((n, self.c_in, self.conditional_size)).to(self.device)
+            x = torch.randn((n, self.spectral_label_size)).to(self.device)# [n, 1, condition_size]
             for i in progress_bar(reversed(range(1, self.noise_steps)), total=self.noise_steps-1, leave=False):
                 t = (torch.ones(n) * i).long().to(self.device)
-                predicted_noise = model(x, t, labels)
+                predicted_noise = model(x, t, condition) #？ 
                 if cfg_scale > 0:
                     uncond_predicted_noise = model(x, t, None)
                     predicted_noise = torch.lerp(uncond_predicted_noise, predicted_noise, cfg_scale)
-                alpha = self.alpha[t][:, None, None, None]
-                alpha_hat = self.alpha_hat[t][:, None, None, None]
-                beta = self.beta[t][:, None, None, None]
+                alpha = self.alpha[t][:, None]
+                alpha_hat = self.alpha_hat[t][:, None]
+                beta = self.beta[t][:, None]
                 if i > 1:
                     noise = torch.randn_like(x)
                 else:
                     noise = torch.zeros_like(x)
                 x = 1 / torch.sqrt(alpha) * (x - ((1 - alpha) / (torch.sqrt(1 - alpha_hat))) * predicted_noise) + torch.sqrt(beta) * noise
         x = (x.clamp(-1, 1) + 1) / 2
-        x = (x * 255).type(torch.uint8)
+        # x = (x * 255).type(torch.uint8)
         return x
 
     def train_step(self, loss):
@@ -156,7 +154,7 @@ class Diffusion:
 
     def prepare(self, args):
         mk_folders(args.run_name)
-        device = args.device
+        # device = args.device
         self.train_dataloader, self.val_dataloader = get_spectral(args)
         self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr, weight_decay=0.001)
         self.scheduler = optim.lr_scheduler.OneCycleLR(self.optimizer, max_lr=args.lr, 
