@@ -121,7 +121,7 @@ class Diffusion:
                 x_t, noise = self.noise_images(images, t)
                 if np.random.random() < 0.1:
                     labels = None
-                predicted_noise = self.model(x_t, t, labels)
+                predicted_noise = self.model(x_t, t, labels)# torch.Size([10, 3, 64, 64]), [10], [10]
                 loss = self.mse(noise, predicted_noise)
                 avg_loss += loss
             if train:
