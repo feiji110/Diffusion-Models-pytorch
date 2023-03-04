@@ -167,25 +167,25 @@ class UNet(nn.Module):
         return pos_enc
 
     def unet_forwad(self, x, t):
-        x1 = self.inc(x)
-        x2 = self.down1(x1, t)
-        x2 = self.sa1(x2)
-        x3 = self.down2(x2, t)
+        x1 = self.inc(x) # [10， 3， 64， 64]->[10, 64, 64, 64]
+        x2 = self.down1(x1, t)# [10, 64, 64, 64]->[10, 128, 32, 32]
+        x2 = self.sa1(x2)# [10, 128, 32, 32]
+        x3 = self.down2(x2, t)# [10, 256, 16, 16]
         x3 = self.sa2(x3)
-        x4 = self.down3(x3, t)
+        x4 = self.down3(x3, t)# [10, 256, 8, 8]
         x4 = self.sa3(x4)
 
-        x4 = self.bot1(x4)
+        x4 = self.bot1(x4)# [10, 256, 8, 8]
         # x4 = self.bot2(x4)
-        x4 = self.bot3(x4)
+        x4 = self.bot3(x4)# [10, 256, 8, 8]
 
-        x = self.up1(x4, x3, t)
+        x = self.up1(x4, x3, t)# [10, 128, 16, 16]
         x = self.sa4(x)
-        x = self.up2(x, x2, t)
+        x = self.up2(x, x2, t)# [10, 64, 32, 32]
         x = self.sa5(x)
-        x = self.up3(x, x1, t)
+        x = self.up3(x, x1, t)# [10, 64, 64, 64]
         x = self.sa6(x)
-        output = self.outc(x)
+        output = self.outc(x)# [10, 3, 64, 64]
         return output
     
     def forward(self, x, t):
@@ -201,10 +201,18 @@ class UNet_conditional(UNet):
             self.label_emb = nn.Embedding(num_classes, time_dim)
 
     def forward(self, x, t, y=None):
-        t = t.unsqueeze(-1)
-        t = self.pos_encoding(t, self.time_dim)
+        t = t.unsqueeze(-1)# [10,1]
+        t = self.pos_encoding(t, self.time_dim) # [10, 256]
 
         if y is not None:
-            t += self.label_emb(y)
+            t += self.label_emb(y)# [10, 256]
 
-        return self.unet_forwad(x, t)
+        return self.unet_forwad(x, t) # [10, 3, 64, 64], [10, 256]
+# if __name__ == '__main__':
+    
+#     model = UNet_conditional(c_in=1, c_out=1, num_classes=10)
+
+#     x_t =  torch.randn(128, 3, 64, 64)
+#     condition = torch.randn(128, 39)
+#     t = torch.randn(128)  
+#     predicted_noise = model(x_t, t, condition)  # 输出 [128， 161]
